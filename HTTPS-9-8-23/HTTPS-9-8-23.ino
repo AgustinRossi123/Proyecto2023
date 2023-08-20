@@ -71,7 +71,6 @@ void setup() {
 }
 
 void loop() {
-  delay(500);
   //----------------------DHT-------------------------------------------------
   float h = dht.readHumidity();
   // Read temperature as Celsius (the default)
@@ -87,63 +86,52 @@ void loop() {
   tiempoMedicion = now.timestamp();
 
 //----------------------Neo6MGPS-------------------------------------------
-delay(500);
-  // if (ss.available() > 0 && gps.encode(ss.read()) && gps.location.isValid()){
-  //   latitud = gps.location.lat();
-  //   longitud = gps.location.lng();
-  // }
-  if(gps.location.isValid()){
-    latitud = gps.location.lat();
-    longitud = gps.location.lng();
+  while (ss.available() > 0){
+    if (gps.encode(ss.read())){
+      if(gps.location.isValid()){
+         latitud = gps.location.lat();
+         longitud = gps.location.lng();
+//----------------------WIFI-----------------------------------------------------
+          if ((WiFiMulti.run() == WL_CONNECTED)) {
+            std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
+            client->setInsecure();
+            HTTPClient https;
+            Serial.print("[HTTPS] begin...\n");
+            if (https.begin(*client, URL)) {
+              Serial.print("[HTTPS] POST...\n");      
+              sprintf(buf, "{\"humedad\": %.2f, \"temperatura\": %.2f, \"latitud\": %.6f, \"longitud\": %.6f, \"tiempoMedicion\": \"%sZ\"}", h, t, latitud, longitud, tiempoMedicion.c_str());
+              Serial.println(buf);
+              https.addHeader("Content-Type", "application/json");
+              int httpCode = https.POST(buf);
+        
+              if (httpCode > 0) {
+                // HTTP header has been send and Server response header has been handled
+                Serial.printf("[HTTPS] POST... code: %d\n", httpCode);
+        
+                // file found at server
+                if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
+                  String payload = https.getString();
+                  Serial.println(payload);
+                }
+              } else {
+                Serial.printf("[HTTPS] POST... failed, error: %s\n", https.errorToString(httpCode).c_str());
+              }
+        
+              https.end();
+            } else {
+              Serial.printf("[HTTPS] Unable to connect\n");
+            }
+          }
+          smartDelay(5000);
+      }
+      else{
+         Serial.print(F("INVALID"));
+         return;
+      }
+    }
   }
-  else{
-    //Serial.println("GPS data not valid");
-    //return;
-    latitud = 000000;
-    longitud = 000000;
-  }
-  sprintf(buf, "{\"humedad\": %.2f, \"temperatura\": %.2f, \"latitud\": %.6f, \"longitud\": %.6f, \"tiempoMedicion: \"%s\"}", h, t, latitud, longitud, tiempoMedicion.c_str());
-  Serial.println(buf);
-  }
-  //----------------------WIFI-----------------------------------------------------
-//  if ((WiFiMulti.run() == WL_CONNECTED)) {
-//
-//    std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
-//
-//    client->setInsecure();
-//    HTTPClient https;
-//
-//    Serial.print("[HTTPS] begin...\n");
-//    if (https.begin(*client, URL)) {  // HTTPS
-//
-//      Serial.print("[HTTPS] POST...\n");
-//      // start connection and send HTTP header
-//      
-//      sprintf(buf, "{\"humedad\": %.2f, \"temperatura\": %.2f, \"latitud\": %.6f, \"longitud\": %.6f, \"tiempoMedicion: \"%s\"}", h, t, latitud, longitud, tiempoMedicion.c_str());
-//      https.addHeader("Content Type", "application/json");
-//      int httpCode = https.POST(buf);
-//
-//      // httpCode will be negative on error
-//      if (httpCode > 0) {
-//        // HTTP header has been send and Server response header has been handled
-//        Serial.printf("[HTTPS] POST... code: %d\n", httpCode);
-//
-//        // file found at server
-//        if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
-//          String payload = https.getString();
-//          Serial.println(payload);
-//        }
-//      } else {
-//        Serial.printf("[HTTPS] POST... failed, error: %s\n", https.errorToString(httpCode).c_str());
-//      }
-//
-//      https.end();
-//    } else {
-//      Serial.printf("[HTTPS] Unable to connect\n");
-//    }
-//  }
-//}
-//
+}
+
 ////----------Neo6m--------------------------------------------------------------
 
 static void smartDelay(unsigned long ms)
