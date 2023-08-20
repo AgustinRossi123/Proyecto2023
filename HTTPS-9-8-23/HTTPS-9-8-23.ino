@@ -20,7 +20,7 @@
 RTC_DS1307 rtc;
 
 //-----------Neo6M------------
-static const int RXPin = 12, TXPin = 13;
+static const int RXPin = 14, TXPin = 12;
 static const uint32_t GPSBaud = 9600;
 TinyGPSPlus gps;
 SoftwareSerial ss(RXPin, TXPin);
