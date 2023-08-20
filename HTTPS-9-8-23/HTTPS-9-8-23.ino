@@ -50,8 +50,10 @@ void setup() {
 #endif
 
   while (! rtc.begin()) {
+    
     Serial.println("Couldn't find RTC");
-    Serial.flush();
+    delay(700);
+    //Serial.flush();
   }
 
   if (! rtc.isrunning()) {
@@ -69,6 +71,7 @@ void setup() {
 }
 
 void loop() {
+  delay(500);
   //----------------------DHT-------------------------------------------------
   float h = dht.readHumidity();
   // Read temperature as Celsius (the default)
@@ -84,16 +87,24 @@ void loop() {
   tiempoMedicion = now.timestamp();
 
 //----------------------Neo6MGPS-------------------------------------------
-  if (ss.available() > 0 && gps.encode(ss.read()) && gps.location.isValid()){
+delay(500);
+  // if (ss.available() > 0 && gps.encode(ss.read()) && gps.location.isValid()){
+  //   latitud = gps.location.lat();
+  //   longitud = gps.location.lng();
+  // }
+  if(gps.location.isValid()){
     latitud = gps.location.lat();
     longitud = gps.location.lng();
   }
   else{
-    Serial.println("GPS data not valid");
-    return;
+    //Serial.println("GPS data not valid");
+    //return;
+    latitud = 000000;
+    longitud = 000000;
   }
   sprintf(buf, "{\"humedad\": %.2f, \"temperatura\": %.2f, \"latitud\": %.6f, \"longitud\": %.6f, \"tiempoMedicion: \"%s\"}", h, t, latitud, longitud, tiempoMedicion.c_str());
   Serial.println(buf);
+  }
   //----------------------WIFI-----------------------------------------------------
 //  if ((WiFiMulti.run() == WL_CONNECTED)) {
 //
@@ -134,13 +145,13 @@ void loop() {
 //}
 //
 ////----------Neo6m--------------------------------------------------------------
-//
-//static void smartDelay(unsigned long ms)
-//{
-//  unsigned long start = millis();
-//  do 
-//  {
-//    while (ss.available())
-//      gps.encode(ss.read());
-//  } while (millis() - start < ms);
+
+static void smartDelay(unsigned long ms)
+{
+  unsigned long start = millis();
+  do 
+  {
+    while (ss.available())
+      gps.encode(ss.read());
+  } while (millis() - start < ms);
 }
