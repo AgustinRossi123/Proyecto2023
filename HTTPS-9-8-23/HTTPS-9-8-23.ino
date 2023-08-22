@@ -15,7 +15,7 @@
 #include "DHT.h"
 #define DHTPIN 2
 #define DHTTYPE DHT11
-
+#include "HX711.h"
 //------------ds1307----------
 RTC_DS1307 rtc;
 
@@ -33,6 +33,15 @@ char buf[128];
 String tiempoMedicion;
 const char* URL = "https://next-app-api.vercel.app/api/camiones/caba-cor/sensores";
 ESP8266WiFiMulti WiFiMulti;
+
+//-----------Hx711-----------------
+const int LOADCELL_DOUT_PIN = 0;
+const int LOADCELL_SCK_PIN = 13;
+
+float peso;
+float pesoreal;
+long reading;
+HX711 scale;
 
 void setup() {
 //-------------conexion-------------------------------------------------
@@ -68,6 +77,8 @@ void setup() {
 
 //-------------------Neo6M-----------
   ss.begin(GPSBaud);
+//-----------------hx711------------------------
+scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
 }
 
 void loop() {
@@ -91,6 +102,17 @@ void loop() {
       if(gps.location.isValid()){
          latitud = gps.location.lat();
          longitud = gps.location.lng();
+//----------------------hx711----------------------------------------------
+if (scale.is_ready()) {
+    reading = scale.read();
+    peso = scale.read();
+    pesoreal = (peso - 92600)/100;
+    Serial.print(pesoreal);
+    Serial.println(" gramos");
+  } else {
+    Serial.println("HX711 not found.");
+  }
+
 //----------------------WIFI-----------------------------------------------------
           if ((WiFiMulti.run() == WL_CONNECTED)) {
             std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
@@ -99,7 +121,7 @@ void loop() {
             Serial.print("[HTTPS] begin...\n");
             if (https.begin(*client, URL)) {
               Serial.print("[HTTPS] POST...\n");      
-              sprintf(buf, "{\"humedad\": %.2f, \"temperatura\": %.2f, \"latitud\": %.6f, \"longitud\": %.6f, \"tiempoMedicion\": \"%sZ\"}", h, t, latitud, longitud, tiempoMedicion.c_str());
+              sprintf(buf, "{\"humedad\": %.2f, \"temperatura\": %.2f, \"latitud\": %.6f, \"longitud\": %.6f, \"tiempoMedicion\": \"%sZ\", \"peso\": %.2f}", h, t, latitud, longitud, tiempoMedicion.c_str(), pesoreal);
               Serial.println(buf);
               https.addHeader("Content-Type", "application/json");
               int httpCode = https.POST(buf);
