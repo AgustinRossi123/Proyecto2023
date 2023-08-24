@@ -53,6 +53,7 @@ void setup() {
   WiFi.mode(WIFI_STA);
   WiFiMulti.addAP(STASSID, STAPSK);
   Serial.println("setup() done connecting to ssid '" STASSID "'");
+  
 //------------------Ds1307-------------------------------
 #ifndef ESP8266
   while (!Serial); // wait for serial port to connect. Needed for native USB
@@ -69,6 +70,7 @@ void setup() {
     Serial.println("RTC is NOT running, let's set the time!");
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
+
 //-----------------DHT---------------
 
   delay(500);
@@ -78,7 +80,7 @@ void setup() {
 //-------------------Neo6M-----------
   ss.begin(GPSBaud);
 //-----------------hx711------------------------
-scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
 }
 
 void loop() {
@@ -100,51 +102,52 @@ void loop() {
   while (ss.available() > 0){
     if (gps.encode(ss.read())){
       if(gps.location.isValid()){
-         latitud = gps.location.lat();
-         longitud = gps.location.lng();
+        latitud = gps.location.lat();
+        longitud = gps.location.lng();
 //----------------------hx711----------------------------------------------
-if (scale.is_ready()) {
-    reading = scale.read();
-    peso = scale.read();
-    pesoreal = (peso - 92600)/100;
-    Serial.print(pesoreal);
-    Serial.println(" gramos");
-  } else {
-    Serial.println("HX711 not found.");
-  }
-
+        if (scale.is_ready()) {
+            reading = scale.read();
+            peso = scale.read();
+            pesoreal = (peso - 92600)/100;
+            Serial.print(pesoreal);
+            Serial.println(" gramos");
+        }
+        else {
+          Serial.println("HX711 not found.");
+          return;
+        }
 //----------------------WIFI-----------------------------------------------------
-          if ((WiFiMulti.run() == WL_CONNECTED)) {
-            std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
-            client->setInsecure();
-            HTTPClient https;
-            Serial.print("[HTTPS] begin...\n");
-            if (https.begin(*client, URL)) {
-              Serial.print("[HTTPS] POST...\n");      
-              sprintf(buf, "{\"humedad\": %.2f, \"temperatura\": %.2f, \"latitud\": %.6f, \"longitud\": %.6f, \"tiempoMedicion\": \"%sZ\", \"peso\": %.2f}", h, t, latitud, longitud, tiempoMedicion.c_str(), pesoreal);
-              Serial.println(buf);
-              https.addHeader("Content-Type", "application/json");
-              int httpCode = https.POST(buf);
-        
-              if (httpCode > 0) {
-                // HTTP header has been send and Server response header has been handled
-                Serial.printf("[HTTPS] POST... code: %d\n", httpCode);
-        
-                // file found at server
-                if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
-                  String payload = https.getString();
-                  Serial.println(payload);
-                }
-              } else {
-                Serial.printf("[HTTPS] POST... failed, error: %s\n", https.errorToString(httpCode).c_str());
+        if ((WiFiMulti.run() == WL_CONNECTED)) {
+          std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
+          client->setInsecure();
+          HTTPClient https;
+          Serial.print("[HTTPS] begin...\n");
+          if (https.begin(*client, URL)) {
+            Serial.print("[HTTPS] POST...\n");      
+            sprintf(buf, "{\"humedad\": %.2f, \"temperatura\": %.2f, \"latitud\": %.6f, \"longitud\": %.6f, \"tiempoMedicion\": \"%sZ\", \"peso\": %.2f}", h, t, latitud, longitud, tiempoMedicion.c_str(), pesoreal);
+            Serial.println(buf);
+            https.addHeader("Content-Type", "application/json");
+            int httpCode = https.POST(buf);
+      
+            if (httpCode > 0) {
+              // HTTP header has been send and Server response header has been handled
+              Serial.printf("[HTTPS] POST... code: %d\n", httpCode);
+      
+              // file found at server
+              if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
+                String payload = https.getString();
+                Serial.println(payload);
               }
-        
-              https.end();
             } else {
-              Serial.printf("[HTTPS] Unable to connect\n");
+              Serial.printf("[HTTPS] POST... failed, error: %s\n", https.errorToString(httpCode).c_str());
             }
+      
+            https.end();
+          } else {
+            Serial.printf("[HTTPS] Unable to connect\n");
           }
-          smartDelay(5000);
+        }
+        smartDelay(5000);
       }
       else{
          Serial.print(F("INVALID"));
