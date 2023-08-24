@@ -29,7 +29,7 @@ float longitud;
 //-----------DHT-----------
 DHT dht(DHTPIN, DHTTYPE);
 
-char buf[128];
+char buf[256];
 String tiempoMedicion;
 const char* URL = "https://next-app-api.vercel.app/api/camiones/caba-cor/sensores";
 ESP8266WiFiMulti WiFiMulti;
